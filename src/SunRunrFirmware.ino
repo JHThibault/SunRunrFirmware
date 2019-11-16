@@ -30,6 +30,7 @@ Reporter Reporter(locationTracker, locationsQueue);
 
 UVLocation test;
 String postData;
+String timeNow;
 
 //-------------------------------------------------------------------
 
@@ -37,7 +38,7 @@ void stateMachineScheduler() {        //sets bullen to exuicute the state machin
     executeStateMachines = true;
 }
 
-Timer stateMachineTimer(1000, stateMachineScheduler);   //when 10 mills have passed call functuoin
+Timer stateMachineTimer(5000, stateMachineScheduler);   //when 10 mills have passed call functuoin
 
 //-------------------------------------------------------------------
 
@@ -91,21 +92,22 @@ void loop() {
 
         locationTracker.updateGPS();
         //UVLocation test = UVLocation(millis(), 5.0, 4.0, 3.0, 2.0);
-        locationsQueue.push(UVLocation(millis(), locationTracker.readLonDeg(), locationTracker.readLatDeg(),
-                           locationTracker.getSpeed(), UVTracker.readUV()));
-
+        // locationsQueue.push(UVLocation(millis(), locationTracker.readLonDeg(), locationTracker.readLatDeg(),
+        //                    locationTracker.getSpeed(), UVTracker.readUV()));
+        //
         // test = locationsQueue.front();  //get the front locatoin form the queue
         // locationsQueue.pop();
+
         // postData = String::format("{ \"Time\": \"%d\",\"longitude\": \"%f\", \"latitude\": \"%f\" , \"speed\": \"%f\", \"uv\": \"%f\"}",
         //                           test.getMills(), test.getLongitude(), test.getLatitude(),
         //                           test.getSpeed(), test.getUV());
         // Serial.println(postData);
 
         test = UVLocation(millis(), locationTracker.readLonDeg(), locationTracker.readLatDeg(),
-                           locationTracker.getSpeed(), UVTracker.readUV());
+                          locationTracker.getSpeed(), UVTracker.readUV());
 
-        postData = String::format("{ \"Time\": \"%d\",\"longitude\": \"%f\", \"latitude\": \"%f\" , \"speed\": \"%f\", \"uv\": \"%f\"}",
-                                                      test.getMills(), test.getLongitude(), test.getLatitude(),
+        postData = String::format("{ \"Time\": \"%d:%d:%02d\",\"longitude\": \"%f\", \"latitude\": \"%f\" , \"speed\": \"%f\", \"uv\": \"%f\"}",
+                                                      Time.hour(), Time.minute(), Time.second(), test.getLongitude(), test.getLatitude(),
                                                       test.getSpeed(), test.getUV());
         Serial.println(postData);
         Particle.publish("sunRun", postData);

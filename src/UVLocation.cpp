@@ -10,12 +10,19 @@ UVLocation::UVLocation() {
    this->uvValue = 0.0;
    this->speed = 0.0;
    this->mills = 0;
+   this->hour = 0;
+   this->minute = 0;
+   this->second = 0;
+
 }
 
 //-------------------------------------------------------------------
 
-UVLocation::UVLocation(int mills, float longitude, float latitude, float speed, float uvValue) {
+UVLocation::UVLocation(int mills, int hour, int minute, int second, float longitude, float latitude, float speed, float uvValue) {
    this->mills = mills;
+   this->hour = hour;
+   this->minute = minute;
+   this->second = second;
    this->longitude = longitude;
    this->latitude = latitude;
    this->speed = speed;
@@ -51,6 +58,27 @@ float UVLocation::getSpeed() {
 
 int UVLocation::getMills() {
    return mills;
+
+}
+
+//-------------------------------------------------------------------
+
+int UVLocation::getHour() {
+   return hour;
+
+}
+
+//-------------------------------------------------------------------
+
+int UVLocation::getMinute() {
+   return minute;
+
+}
+
+//-------------------------------------------------------------------
+
+int UVLocation::getSecond() {
+   return second;
 
 }
 

@@ -28,7 +28,7 @@ queue<UVLocation> locationsQueue;        //queue of Locations
 // PotholeDetector potholeDetector(locationTracker, potholeLocations, 2, 10, 10000.0);
 Reporter Reporter(locationTracker, locationsQueue);
 
-UVLocation test;
+UVLocation locData;
 String postData;
 String timeNow;
 
@@ -103,12 +103,20 @@ void loop() {
         //                           test.getSpeed(), test.getUV());
         // Serial.println(postData);
 
-        test = UVLocation(millis(), locationTracker.readLonDeg(), locationTracker.readLatDeg(),
-                          locationTracker.getSpeed(), UVTracker.readUV());
+        if (locationTracker.gpsFix()) {  //if there is curently a fix, report the location from the queue
+          locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(),locationTracker.readLonDeg(), locationTracker.readLatDeg(),
+                            locationTracker.getSpeed(), UVTracker.readUV());
+        }
+        else {                     //if we dont curently have a fix return a BS locatoin
+          locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(), -110.948676, 32.232609,
+                            1, UVTracker.readUV());
+        }
+
+        //32.232609, -110.948676 locatoin of the office
 
         postData = String::format("{ \"Time\": \"%d:%d:%02d\",\"longitude\": \"%f\", \"latitude\": \"%f\" , \"speed\": \"%f\", \"uv\": \"%f\"}",
-                                                      Time.hour(), Time.minute(), Time.second(), test.getLongitude(), test.getLatitude(),
-                                                      test.getSpeed(), test.getUV());
+                                          locData.getHour(), locData.getMinute(), locData.getSecond(), locData.getLongitude(), locData.getLatitude(),
+                                          locData.getSpeed(), locData.getUV());
         Serial.println(postData);
         Particle.publish("sunRun", postData);
 

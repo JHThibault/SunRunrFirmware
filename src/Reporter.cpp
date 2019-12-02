@@ -3,6 +3,9 @@
 #include "Reporter.h"
 #include "UVLocation.h"
 
+
+
+
 //-------------------------------------------------------------------
 
 Reporter::Reporter(AssetTracker &theTracker,
@@ -14,6 +17,7 @@ Reporter::Reporter(AssetTracker &theTracker,
     state = S_Wait;
     led = D7;
     pinMode(led, OUTPUT);  //set the LED as an OUTPUT
+    digitalWrite(led, LOW);
 }
 
 //-------------------------------------------------------------------
@@ -22,12 +26,9 @@ void Reporter::execute() {
     UVLocation nextLocation;
     String postData;
 
-    Serial.println(locationsQueue.size());
-
     switch (state) {
         case Reporter::S_Wait:
             tick = 0;
-            digitalWrite(led, LOW);  //turn off the LED
 
             if (locationsQueue.size() > 0) {  //if there is anything to report
                 state = Reporter::S_Publish;
@@ -39,31 +40,27 @@ void Reporter::execute() {
 
         case Reporter::S_Publish:
 
-            for (int i = 0; i < locationsQueue.size(); i++) {
-              nextLocation = locationsQueue.front();  //get the front locatoin form the queue
-              locationsQueue.pop();                   //removes the front element
+            digitalWrite(led, HIGH);  //turn off the LED
 
-              postData += String::format("{ \"Time\": \"%d\",\"longitude\": \"%f\", \"latitude\": \"%f\" , \"speed\": \"%f\", \"uv\": \"%f\"} \n",
-                                         nextLocation.getMills(), nextLocation.getLongitude(), nextLocation.getLatitude(),
-                                         nextLocation.getSpeed(), nextLocation.getUV());
-            }
+            locData = locationsQueue.front();  //get the front locatoin form the queue
+            locationsQueue.pop();                   //removes the front element
 
-
-
-            //**********************************************************************************************
+            postData = String::format("{ \"Time\": \"%d:%d:%02d\",\"longitude\": \"%f\", \"latitude\": \"%f\" , \"speed\": \"%f\", \"uv\": \"%f\"}",
+                                          locData.getHour(), locData.getMinute(), locData.getSecond(), locData.getLongitude(), locData.getLatitude(),
+                                          locData.getSpeed(), locData.getUV());
 
             Serial.println(postData);  //print the datastring
-            postData = ""; //wipe the buffer
             Particle.publish("sunRun", postData);  //post the data.
             state = Reporter::S_LedNotify; //set the next state
+            postData = ""; //wipe the buffer
             break;
 
         case Reporter::S_LedNotify:
-            digitalWrite(led, HIGH);  //turn on the LED
+            digitalWrite(led, LOW);  //turn on the LED
             ++tick;
 
             // Keep LED on for 1 second
-            if (tick == 100) { //after 100 ticks go back to the wait state
+            if (tick == 100) { //after 50 ticks go back to the wait state
                 state = Reporter::S_Wait;
             }
             else {

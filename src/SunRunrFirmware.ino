@@ -16,9 +16,13 @@ using namespace std;
 #define ONE_DAY_MILLIS (24 * 60 * 60 * 1000)
 unsigned long lastSync = millis();
 
+#define button  D5
+
 //-------------------------------------------------------------------
 
 bool executeStateMachines = false;
+bool activity = false;
+volatile bool buttonDB = false;
 
 //-------------------------------------------------------------------
 
@@ -38,7 +42,7 @@ void stateMachineScheduler() {        //sets bullen to exuicute the state machin
     executeStateMachines = true;
 }
 
-Timer stateMachineTimer(5000, stateMachineScheduler);   //when 10 mills have passed call functuoin
+Timer stateMachineTimer(5000, stateMachineScheduler);   //when 5 secs have passed call functuoin
 
 //-------------------------------------------------------------------
 
@@ -47,6 +51,10 @@ void responseHandler(const char *event, const char *data) {     // prints the da
     String output = String::format("POST Response:\n  %s\n  %s\n", event, data);
     // Log to serial console
     Serial.println(output);
+}
+
+void buttonHandler(){
+    buttonDB = true;
 }
 
 //-------------------------------------------------------------------
@@ -65,6 +73,10 @@ void setup() {
     Particle.subscribe("hook-response/sunRun", responseHandler, MY_DEVICES);  //set up the link with the webhook
 
     stateMachineTimer.start();          //activate the timer interupt
+
+    pinMode(D7, OUTPUT);
+    pinMode(button, INPUT_PULLUP); //set button as an input
+    attachInterrupt(button, buttonHandler, FALLING); //atatch the intrupt
 }
 
 //-------------------------------------------------------------------
@@ -78,30 +90,22 @@ void loop() {
     }
 
 
-    if (executeStateMachines) {   //when the intrupt changes this flag to true
+    locationTracker.updateGPS();  //get the curent gps location
+
+    if (buttonDB == true) {
+      activity = !activity;
+      delay(50); //wait for transitnts to die out for the button
+      buttonDB = false;
+    }
+
+    if(activity == false){
+      digitalWrite(D7, LOW);
+      //Serial.println("waiting to start");
+
+    }
+    else if (executeStateMachines) {   //when the intrupt changes this flag to true
+      digitalWrite(D7, HIGH);
         locationTracker.updateGPS();  //get the curent gps location
-        // potholeDetector.execute();    //sample for potholes
-
-        //add new UVLocation to the queue
-        //locationsQueue.push(UVLocation(millis(), locationTracker.readLonDeg(), locationTracker.readLatDeg(),
-        //                    locationTracker.getSpeed(), UVTracker.readUV()));
-
-
-        //locationsQueue.push(UVLocation(millis(), 5, 4, 3, 2));
-
-
-        locationTracker.updateGPS();
-        //UVLocation test = UVLocation(millis(), 5.0, 4.0, 3.0, 2.0);
-        // locationsQueue.push(UVLocation(millis(), locationTracker.readLonDeg(), locationTracker.readLatDeg(),
-        //                    locationTracker.getSpeed(), UVTracker.readUV()));
-        //
-        // test = locationsQueue.front();  //get the front locatoin form the queue
-        // locationsQueue.pop();
-
-        // postData = String::format("{ \"Time\": \"%d\",\"longitude\": \"%f\", \"latitude\": \"%f\" , \"speed\": \"%f\", \"uv\": \"%f\"}",
-        //                           test.getMills(), test.getLongitude(), test.getLatitude(),
-        //                           test.getSpeed(), test.getUV());
-        // Serial.println(postData);
 
         if (locationTracker.gpsFix()) {  //if there is curently a fix, report the location from the queue
           locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(),locationTracker.readLonDeg(), locationTracker.readLatDeg(),
@@ -112,19 +116,21 @@ void loop() {
                             1, UVTracker.readUV());
         }
 
-        //32.232609, -110.948676 locatoin of the office
+        //write the new locData to the locationsQueue
+        locationsQueue.push(locData);
 
-        postData = String::format("{ \"Time\": \"%d:%d:%02d\",\"longitude\": \"%f\", \"latitude\": \"%f\" , \"speed\": \"%f\", \"uv\": \"%f\"}",
-                                          locData.getHour(), locData.getMinute(), locData.getSecond(), locData.getLongitude(), locData.getLatitude(),
-                                          locData.getSpeed(), locData.getUV());
-        Serial.println(postData);
-        Particle.publish("sunRun", postData);
+        //32.232609, -110.948676 location of the office
 
-        //Reporter.execute();
+
+
+        // Reporter.execute();
         executeStateMachines = false;
 
 
     }
+
+    //outsize the loop excuite the reporter
+    Reporter.execute();
 }
 
 //-------------------------------------------------------------------

@@ -25,6 +25,7 @@ private:
     int led;
     AssetTracker& gpsSensor;
     queue<UVLocation>& locationsQueue;
+    UVLocation locData;
 public:
     Reporter(AssetTracker &theTracker, queue<UVLocation>& theLocations);
     void execute();

@@ -5,11 +5,14 @@
 
 #include <AssetTracker.h>
 #include "UVLocation.h"
+#include "leds.h"
 #include <queue>
 
 //-------------------------------------------------------------------
 
 using namespace std;
+
+
 
 //-------------------------------------------------------------------
 
@@ -25,9 +28,10 @@ private:
     int led;
     AssetTracker& gpsSensor;
     queue<UVLocation>& locationsQueue;
+    leds& ledsR;
     UVLocation locData;
 public:
-    Reporter(AssetTracker &theTracker, queue<UVLocation>& theLocations);
+    Reporter(AssetTracker &theTracker, queue<UVLocation>& theLocations, leds& ledsP);
     void execute();
 };
 

@@ -5,19 +5,14 @@
 
 
 
-
 //-------------------------------------------------------------------
 
 Reporter::Reporter(AssetTracker &theTracker,
-                                 queue<UVLocation> &theLocations) : gpsSensor(theTracker),  //object of GPS
-                                                                         locationsQueue(theLocations)  //queue of Locations
-                                                                         {
-
+                                 queue<UVLocation> &theLocations, leds &ledsP) : gpsSensor(theTracker),  //object of GPS
+                                                                         locationsQueue(theLocations),  //queue of Locations
+                                                                         ledsR(ledsP){
     tick = 0;
     state = S_Wait;
-    led = D7;
-    pinMode(led, OUTPUT);  //set the LED as an OUTPUT
-    digitalWrite(led, LOW);
 }
 
 //-------------------------------------------------------------------
@@ -40,8 +35,6 @@ void Reporter::execute() {
 
         case Reporter::S_Publish:
 
-            digitalWrite(led, HIGH);  //turn off the LED
-
             locData = locationsQueue.front();  //get the front locatoin form the queue
             locationsQueue.pop();                   //removes the front element
 
@@ -56,16 +49,19 @@ void Reporter::execute() {
             break;
 
         case Reporter::S_LedNotify:
-            digitalWrite(led, LOW);  //turn on the LED
-            ++tick;
 
-            // Keep LED on for 1 second
-            if (tick == 100) { //after 50 ticks go back to the wait state
-                state = Reporter::S_Wait;
-            }
-            else {
-                state = Reporter::S_LedNotify; //stay here till then
-            }
+            ledsR.reportBlink();
+
+            state = Reporter::S_LedNotify;
+            // ++tick;
+            //
+            // // this dose not work the leds any more bit it will give a delay so we dont stack reports to fast
+            // if (tick == 100) { //after 50 ticks go back to the wait state
+            //     state = Reporter::S_Wait;
+            // }
+            // else {
+            //     state = Reporter::S_LedNotify; //stay here till then
+            // }
             break;
     }
 }

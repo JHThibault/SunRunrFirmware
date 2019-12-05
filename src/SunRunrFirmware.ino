@@ -1,11 +1,16 @@
 //-------------------------------------------------------------------
 
 #include "Reporter.h"
+#include "leds.h"
 // #include "PotholeDetector.h"
 #include "UVLocation.h"
 #include <AssetTracker.h>
 #include <Adafruit_VEML6070.h>
 #include <queue>
+
+
+// SYSTEM_MODE(SEMI_AUTOMATIC)
+// SYSTEM_THREAD(DISABLE)
 
 //-------------------------------------------------------------------
 
@@ -26,11 +31,14 @@ volatile bool buttonDB = false;
 
 //-------------------------------------------------------------------
 
+leds ledsM = leds(); //leds object
 AssetTracker locationTracker = AssetTracker();  //make GPS Object
 Adafruit_VEML6070 UVTracker = Adafruit_VEML6070(); //UVTracker Object
 queue<UVLocation> locationsQueue;        //queue of Locations
 // PotholeDetector potholeDetector(locationTracker, potholeLocations, 2, 10, 10000.0);
-Reporter Reporter(locationTracker, locationsQueue);
+Reporter Reporter(locationTracker, locationsQueue, ledsM);
+
+
 
 UVLocation locData;
 String postData;
@@ -74,7 +82,10 @@ void setup() {
 
     stateMachineTimer.start();          //activate the timer interupt
 
-    pinMode(D7, OUTPUT);
+    //i might need to do something to init the leds.
+    ledsM.activityWait();
+
+
     pinMode(button, INPUT_PULLUP); //set button as an input
     attachInterrupt(button, buttonHandler, FALLING); //atatch the intrupt
 }
@@ -98,13 +109,15 @@ void loop() {
       buttonDB = false;
     }
 
+    //a button press wait state
     if(activity == false){
-      digitalWrite(D7, LOW);
+
+      ledsM.activityWait();
       //Serial.println("waiting to start");
 
     }
     else if (executeStateMachines) {   //when the intrupt changes this flag to true
-      digitalWrite(D7, HIGH);
+        ledsM.activityRunning(); //let the led class know we are in the activiy now
         locationTracker.updateGPS();  //get the curent gps location
 
         if (locationTracker.gpsFix()) {  //if there is curently a fix, report the location from the queue
@@ -131,6 +144,7 @@ void loop() {
 
     //outsize the loop excuite the reporter
     Reporter.execute();
+    ledsM.ledLoop(); //run the led loop
 }
 
 //-------------------------------------------------------------------

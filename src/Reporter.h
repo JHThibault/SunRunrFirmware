@@ -5,8 +5,11 @@
 
 #include <AssetTracker.h>
 #include "UVLocation.h"
-#include "leds.h"
 #include <queue>
+
+#define statusLED D7
+#define uvLED D6
+#define ONE_DAY_MILLIS 24 * 60 * 60 * 1000
 
 //-------------------------------------------------------------------
 
@@ -25,13 +28,11 @@ private:
 private:
     State state;
     int tick;
-    int led;
     AssetTracker& gpsSensor;
     queue<UVLocation>& locationsQueue;
-    leds& ledsR;
     UVLocation locData;
 public:
-    Reporter(AssetTracker &theTracker, queue<UVLocation>& theLocations, leds& ledsP);
+    Reporter(AssetTracker &theTracker, queue<UVLocation>& theLocations);
     void execute();
 };
 

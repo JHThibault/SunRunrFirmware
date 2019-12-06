@@ -8,9 +8,9 @@
 //-------------------------------------------------------------------
 
 Reporter::Reporter(AssetTracker &theTracker,
-                                 queue<UVLocation> &theLocations, leds &ledsP) : gpsSensor(theTracker),  //object of GPS
-                                                                         locationsQueue(theLocations),  //queue of Locations
-                                                                         ledsR(ledsP){
+                                 queue<UVLocation> &theLocations) : gpsSensor(theTracker),  //object of GPS
+                                                                         locationsQueue(theLocations) { //queue of Locations
+
     tick = 0;
     state = S_Wait;
 }
@@ -42,6 +42,10 @@ void Reporter::execute() {
                                           locData.getHour(), locData.getMinute(), locData.getSecond(), locData.getLongitude(), locData.getLatitude(),
                                           locData.getSpeed(), locData.getUV());
 
+            if(locData.getMills() > (millis()- ONE_DAY_MILLIS) ){
+              //data point is to old
+              break;
+            }
             Serial.println(postData);  //print the datastring
             Particle.publish("sunRun", postData);  //post the data.
             state = Reporter::S_LedNotify; //set the next state
@@ -50,18 +54,19 @@ void Reporter::execute() {
 
         case Reporter::S_LedNotify:
 
-            ledsR.reportBlink();
 
             state = Reporter::S_LedNotify;
-            // ++tick;
-            //
-            // // this dose not work the leds any more bit it will give a delay so we dont stack reports to fast
-            // if (tick == 100) { //after 50 ticks go back to the wait state
-            //     state = Reporter::S_Wait;
-            // }
-            // else {
-            //     state = Reporter::S_LedNotify; //stay here till then
-            // }
+            ++tick;
+
+            // this dose not work the leds any more bit it will give a delay so we dont stack reports to fast
+            if (tick == 100) { //after 50 ticks go back to the wait state
+                digitalWrite(statusLED, HIGH);
+                state = Reporter::S_Wait;
+            }
+            else {
+                digitalWrite(statusLED, LOW);
+                state = Reporter::S_LedNotify; //stay here till then
+            }
             break;
     }
 }

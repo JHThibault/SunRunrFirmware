@@ -20,16 +20,17 @@
 using namespace std;
 
 //-------------------------------------------------------------------
+#define delayTime  5000
 
-#define ONE_DAY_MILLIS (24 * 60 * 60 * 1000)
+
 unsigned long lastSync = millis();
 
-#define button  D5
+
+
 
 //-------------------------------------------------------------------
 
 volatile bool executeStateMachines = false;
-volatile bool buttonDB = false;
 bool activity = false;
 // bool moving = false;
 
@@ -42,16 +43,18 @@ queue<UVLocation> locationsQueue;        //queue of Locations
 // PotholeDetector potholeDetector(locationTracker, potholeLocations, 2, 10, 10000.0);
 Reporter Reporter(locationTracker, locationsQueue);
 
-
+enum State { S_Wait, S_Paused, S_deBounce, S_Activity };
+volatile State state;
+volatile State lastState;
 
 UVLocation locData;
 UVLocation lastLocation;
-String postData;
-String timeNow;
 
 int uvThreshold = 1000;
 
 int waitLedTick = 0;
+int pauseCount = 0;
+float uvValue;
 
 //-------------------------------------------------------------------
 
@@ -59,7 +62,7 @@ void stateMachineScheduler() {        //sets bullen to exuicute the state machin
     executeStateMachines = true;
 }
 
-Timer stateMachineTimer(5000, stateMachineScheduler);   //when 5 secs have passed call functuoin
+Timer stateMachineTimer(delayTime, stateMachineScheduler);   //when 5 secs have passed call functuoin
 
 //-------------------------------------------------------------------
 
@@ -69,13 +72,13 @@ void responseHandler(const char *event, const char *data) {     // prints the da
     // Log to serial console
     Serial.println(output);
     //PARSE Out the UV
-    uvThreshold = 1000; /////// Fix me
-
+    uvThreshold = 1000; /////// Fix me witht the server feedback
 
 }
 
 void buttonHandler(){
-    buttonDB = true;
+    lastState = state;
+    state = S_deBounce;
 }
 
 //-------------------------------------------------------------------
@@ -102,6 +105,10 @@ void setup() {
 
     pinMode(button, INPUT_PULLUP); //set button as an input
     attachInterrupt(button, buttonHandler, FALLING); //atatch the intrupt
+
+    state = S_Wait;  //first go to the wait state fitst
+    waitLedTick = 0;
+
 }
 
 //-------------------------------------------------------------------
@@ -123,8 +130,17 @@ void loop() {
     }
 
 
+
+
+
+    locationTracker.updateGPS();  //get the curent gps location
+    uvValue = UVTracker.readUV();
+
+
+
+
     //check the uv warning light
-    if(UVTracker.readUV()>uvThreshold){
+    if(uvValue>uvThreshold){
       digitalWrite(uvLED, HIGH);
     }
     else{
@@ -132,69 +148,101 @@ void loop() {
     }
 
 
-    locationTracker.updateGPS();  //get the curent gps location
+    switch (state) {
+      case S_Wait:
+          if(waitLedTick<75){
+            digitalWrite(statusLED, LOW);
+          }
+          else if(waitLedTick>75 && waitLedTick<100){
 
-    //debounce State
-    if (buttonDB == true) {
-      activity = !activity;
-      delay(1); //wait for transitnts to die out for the button
-      buttonDB = false;
-      waitLedTick = 0;
+            digitalWrite(statusLED, HIGH);
+          }
+          else{
+            waitLedTick = 0;
+          }
+
+          waitLedTick++;
+
+          state = S_Wait;
+
+          break;
+
+      case S_Paused:
+
+          if(waitLedTick<50){
+            digitalWrite(statusLED, HIGH);
+          }
+          else if(waitLedTick>50 && waitLedTick<75){
+
+            digitalWrite(statusLED, LOW);
+          }
+          else{
+            waitLedTick = 0;
+          }
+          waitLedTick++;
+
+          if(locationTracker.getSpeed() > 3){
+            state = S_Activity;
+          }
+          else{
+            state = S_Paused;
+          }
+          break;
+
+      case S_deBounce:
+          delay(100);
+          if (lastState == S_Activity || lastState == S_Paused){ //stop the activity
+            state = S_Wait;
+            waitLedTick = 0;
+          }
+          else{                         //else start the activity
+            state = S_Activity;
+          }
+          break;
+      case S_Activity:
+          if (executeStateMachines) {   //when the intrupt changes this flag to true
+              digitalWrite(statusLED, LOW); //turn on the status lgiht to show we are in the activity
+              locationTracker.updateGPS();  //get the curent gps location
+
+              if (locationTracker.gpsFix()) {  //if there is curently a fix, report the location from the queue
+                locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(),locationTracker.readLonDeg(), locationTracker.readLatDeg(),
+                                  locationTracker.getSpeed(), uvValue);
+              }
+              else {                     //if we dont curently have a fix return a BS locatoin
+                locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(), -110.948676, 32.232609,
+                                  1, uvValue);
+              }
+
+              //write the new locData to the locationsQueue
+              locationsQueue.push(locData);
+
+              //32.232609, -110.948676 location of the office
+
+              if(locationTracker.getSpeed() < 3){
+                pauseCount ++;
+              }
+              else{
+                pauseCount = 0;
+              }
+
+              if(pauseCount > (30*1000/delayTime)-1){
+                state = S_Paused;
+                waitLedTick = 0;
+              }
+
+
+              // Reporter.execute();
+              executeStateMachines = false; //the time intrupt will change it back when the time is right.
+          }
+          else{
+            digitalWrite(statusLED, HIGH);
+          }
+          break;
+
     }
 
-    //a button press wait state
-    if(activity == false){
-
-      //Serial.println("waiting to start");
-
-
-      if(waitLedTick<75){
-        digitalWrite(statusLED, LOW);
-      }
-      else if(waitLedTick>75 && waitLedTick<100){
-
-        digitalWrite(statusLED, HIGH);
-      }
-      else{
-        waitLedTick = 0;
-      }
-
-      waitLedTick++;
-
-    }
-
-  //  add if else statment for the going to slow wait state here
-
-
-    else if (executeStateMachines) {   //when the intrupt changes this flag to true
-        digitalWrite(statusLED, LOW); //turn on the status lgiht to show we are in the activity
-        locationTracker.updateGPS();  //get the curent gps location
-
-        if (locationTracker.gpsFix()) {  //if there is curently a fix, report the location from the queue
-          locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(),locationTracker.readLonDeg(), locationTracker.readLatDeg(),
-                            locationTracker.getSpeed(), UVTracker.readUV());
-        }
-        else {                     //if we dont curently have a fix return a BS locatoin
-          locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(), -110.948676, 32.232609,
-                            1, UVTracker.readUV());
-        }
-
-        //write the new locData to the locationsQueue
-        locationsQueue.push(locData);
-
-        //32.232609, -110.948676 location of the office
-
-        // Reporter.execute();
-        executeStateMachines = false; //the time intrupt will change it back when the time is right.
-
-
-    }
-    else{
-      digitalWrite(statusLED, HIGH); //turn on the status lgiht to show we are in the activity
-    }
-
-    //outsize the loop excuite the reporter
     Reporter.execute();
+
 }
 
 //-------------------------------------------------------------------

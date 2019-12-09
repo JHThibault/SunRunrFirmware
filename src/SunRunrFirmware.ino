@@ -9,8 +9,7 @@
 #include <queue>
 
 
-// SYSTEM_MODE(SEMI_AUTOMATIC)
-// SYSTEM_THREAD(DISABLE)
+SYSTEM_THREAD(ENABLED);
 
 
 
@@ -69,7 +68,7 @@ Timer stateMachineTimer(delayTime, stateMachineScheduler);   //when 5 secs have 
 void responseHandler(const char *event, const char *data) {     // prints the data that comes back form the server
     // Formatting output
     String output = String::format("POST Response:\n  %s\n  %s\n", event, data);
-    // Log to serial console
+    // Log to Serial console
     Serial.println(output);
     //PARSE Out the UV
     uvThreshold = 1000; /////// Fix me witht the server feedback
@@ -129,14 +128,8 @@ void loop() {
       }
     }
 
-
-
-
-
     locationTracker.updateGPS();  //get the curent gps location
-    uvValue = UVTracker.readUV();
-
-
+    uvValue = UVTracker.readUV(); //save the curent uv value
 
 
     //check the uv warning light
@@ -149,15 +142,18 @@ void loop() {
 
 
     switch (state) {
+
+      //inital wait state
       case S_Wait:
-          if(waitLedTick<75){
+        Serial.print("wait\t");
+        Serial.println(waitLedTick);
+          if(waitLedTick<1500){
             digitalWrite(statusLED, LOW);
           }
-          else if(waitLedTick>75 && waitLedTick<100){
-
+          if(waitLedTick>1500){
             digitalWrite(statusLED, HIGH);
           }
-          else{
+          if(waitLedTick > 3000){
             waitLedTick = 0;
           }
 
@@ -167,21 +163,26 @@ void loop() {
 
           break;
 
+      //30 senconds without movement wait state.
       case S_Paused:
 
-          if(waitLedTick<50){
+            Serial.println("paused");
+          //led blink code
+          if(waitLedTick<800){
             digitalWrite(statusLED, HIGH);
           }
-          else if(waitLedTick>50 && waitLedTick<75){
-
+          if(waitLedTick>800){
             digitalWrite(statusLED, LOW);
           }
-          else{
+          if(waitLedTick > 1600){
             waitLedTick = 0;
           }
+
           waitLedTick++;
 
-          if(locationTracker.getSpeed() > 3){
+
+          //check to see if the speed over 3 mph to start agin.
+          if(locationTracker.getSpeed() >= 3){
             state = S_Activity;
           }
           else{
@@ -189,17 +190,21 @@ void loop() {
           }
           break;
 
+      //handles what happens when the button has been presseed
       case S_deBounce:
-          delay(100);
+          Serial.println("debounce");
+          delay(100);  //debouce delay to wait for transents to die out.
           if (lastState == S_Activity || lastState == S_Paused){ //stop the activity
             state = S_Wait;
             waitLedTick = 0;
           }
           else{                         //else start the activity
             state = S_Activity;
+            pauseCount = 0;
           }
           break;
       case S_Activity:
+          Serial.println("activity");
           if (executeStateMachines) {   //when the intrupt changes this flag to true
               digitalWrite(statusLED, LOW); //turn on the status lgiht to show we are in the activity
               locationTracker.updateGPS();  //get the curent gps location
@@ -209,8 +214,10 @@ void loop() {
                                   locationTracker.getSpeed(), uvValue);
               }
               else {                     //if we dont curently have a fix return a BS locatoin
-                locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(), -110.948676, 32.232609,
-                                  1, uvValue);
+                // locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(), -110.948676, 32.232609,
+                //                   1, uvValue);
+                locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(), 999.9999, 333.3333,
+                                                    -1, uvValue);
               }
 
               //write the new locData to the locationsQueue
@@ -225,7 +232,9 @@ void loop() {
                 pauseCount = 0;
               }
 
-              if(pauseCount > (30*1000/delayTime)-1){
+
+              //after 30 seconds without movement go to the poused state
+              if(pauseCount > (30*1000/delayTime)){
                 state = S_Paused;
                 waitLedTick = 0;
               }
@@ -241,7 +250,11 @@ void loop() {
 
     }
 
-    Reporter.execute();
+    //if there is wifi post the data points to the server
+    if (Particle.connected()) {
+    	Reporter.execute();
+    }
+
 
 }
 

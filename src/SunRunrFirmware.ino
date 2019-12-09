@@ -31,6 +31,7 @@ unsigned long lastSync = millis();
 
 volatile bool executeStateMachines = false;
 bool activity = false;
+bool subscribed = false;
 // bool moving = false;
 
 
@@ -93,7 +94,14 @@ void setup() {
     UVTracker.begin(VEML6070_1_T);
 
     // Handler for response from POSTing location to server
-    Particle.subscribe("hook-response/sunRun", responseHandler, MY_DEVICES);  //set up the link with the webhook
+    if (Particle.connected()) {
+      Particle.subscribe("hook-response/sunRun", responseHandler, MY_DEVICES);  //set up the link with the webhook
+      subscribed = true;
+    }
+    else{
+      subscribed = false;
+    }
+
 
     stateMachineTimer.start();          //activate the timer interupt
 
@@ -193,7 +201,7 @@ void loop() {
       //handles what happens when the button has been presseed
       case S_deBounce:
           Serial.println("debounce");
-          delay(100);  //debouce delay to wait for transents to die out.
+          delay(150);  //debouce delay to wait for transents to die out.
           if (lastState == S_Activity || lastState == S_Paused){ //stop the activity
             state = S_Wait;
             waitLedTick = 0;
@@ -252,6 +260,11 @@ void loop() {
 
     //if there is wifi post the data points to the server
     if (Particle.connected()) {
+      //check to see if we have subscribed yet.
+      if (subscribed == false) {
+        Particle.subscribe("hook-response/sunRun", responseHandler, MY_DEVICES);  //set up the link with the webhook
+        subscribed = true;
+      }
     	Reporter.execute();
     }
 

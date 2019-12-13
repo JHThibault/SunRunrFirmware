@@ -1,6 +1,8 @@
 #ifndef UV_LOCATION_H
 #define UV_LOCATION_H
 
+
+
 //-------------------------------------------------------------------
 
 class UVLocation {
@@ -14,12 +16,13 @@ private:
     float latitude;
     float speed;
     float uvValue;
+    char* state;
 
 
 
 public:
     UVLocation();
-    UVLocation(int mills, int hour, int minute, int second, float longitude, float latitude, float speed, float uvValue);
+    UVLocation(int mills, int hour, int minute, int second, float longitude, float latitude, float speed, float uvValue, char* state);
     float getLongitude();
     float getLatitude();
     float getUV();
@@ -28,6 +31,7 @@ public:
     int getHour();
     int getMinute();
     int getSecond();
+    char* getState();
 
 };
 

@@ -13,12 +13,13 @@ UVLocation::UVLocation() {
    this->hour = 0;
    this->minute = 0;
    this->second = 0;
+   this->state = "null";
 
 }
 
 //-------------------------------------------------------------------
 
-UVLocation::UVLocation(int mills, int hour, int minute, int second, float longitude, float latitude, float speed, float uvValue) {
+UVLocation::UVLocation(int mills, int hour, int minute, int second, float longitude, float latitude, float speed, float uvValue, char* state) {
    this->mills = mills;
    this->hour = hour;
    this->minute = minute;
@@ -27,6 +28,7 @@ UVLocation::UVLocation(int mills, int hour, int minute, int second, float longit
    this->latitude = latitude;
    this->speed = speed;
    this->uvValue = uvValue;
+   this->state = state;
 }
 
 //-------------------------------------------------------------------
@@ -80,6 +82,10 @@ int UVLocation::getMinute() {
 int UVLocation::getSecond() {
    return second;
 
+}
+
+char* UVLocation::getState(){
+  return state;
 }
 
 //-------------------------------------------------------------------

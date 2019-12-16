@@ -1,5 +1,4 @@
 //-------------------------------------------------------------------
-
 #include "Reporter.h"
 #include "UVLocation.h"
 #include <AssetTracker.h>
@@ -38,7 +37,7 @@ bool subscribed = false;
 UVLocation locData;
 UVLocation lastLocation;
 
-int uvThreshold = 1000;
+int uvThreshold =1000;
 int waitLedTick = 0;
 int pauseCount = 0;
 float uvValue;
@@ -61,7 +60,40 @@ void responseHandler(const char *event, const char *data) {     // prints the da
     // Log to Serial console
     Serial.println(output);
     //PARSE Out the UV
-    uvThreshold = 1000; /////// Fix me with the server feedback
+    uvThreshold = 5000; /////// Fix me with the server feedback
+
+
+    // char*  dataTest = "{\"status\":\"NoAlert\",\"message\":\"Threshold is undefined\",\"threshold\":1000};"
+
+    char c;
+    String buffer;
+    int colanCount = 0;
+    int dataLen = sizeof(data) / sizeof(data[0]);
+    //while (c != '}')
+
+    for (int i =0; i < dataLen; i++){
+
+      c = data[i];
+
+      if (c == ':'){
+        colanCount++;
+      }
+
+      if (colanCount >  3 && c >= '0' && c <= '9'){
+        buffer += c;
+      }
+
+      i++;
+    }
+
+    uvThreshold = atoi(buffer);
+
+    Serial.print("uvThreshold: ");
+    Serial.println(uvThreshold);
+
+    // POST Response:
+    //             hook-response/sunRun/0
+    //                                     {"status":"NoAlert","message":"Threshold is undefined","threshold":1000}
 
 }
 
@@ -72,6 +104,8 @@ void buttonHandler(){
 }
 
 //-------------------------------------------------------------------
+
+
 
 void setup() {
 
@@ -110,11 +144,16 @@ void setup() {
     state = S_Wait;  //first go to the wait state fitst
     waitLedTick = 0; //reset the counter for whe wait led timing.
 
+
 }
 
 //-------------------------------------------------------------------
 
 void loop() {
+
+
+
+
 
     // Request time synchronization from the Particle Cloud once per day
     if (millis() - lastSync > ONE_DAY_MILLIS) {
@@ -139,8 +178,9 @@ void loop() {
 
       //inital wait state
       case S_Wait:
-        Serial.print("wait\t");
-        Serial.println(waitLedTick);
+
+        //Serial.print("wait\t");
+        //Serial.println(waitLedTick);
           if(waitLedTick<1500){
             digitalWrite(statusLED, LOW);
           }
@@ -157,12 +197,14 @@ void loop() {
 
           digitalWrite(uvLED, LOW);
 
+
           break;
+
 
       //30 senconds without movement wait state.
       case S_Paused:
 
-            Serial.println("paused");
+            //Serial.println("paused");
           //led blink code
           if(waitLedTick<800){
             digitalWrite(statusLED, HIGH);
@@ -186,15 +228,35 @@ void loop() {
             state = S_Paused;
           }
 
+          digitalWrite(uvLED, LOW);
+
           break;
 
       //handles what happens when the button has been presseed
       case S_deBounce:
-          Serial.println("debounce");
+          //Serial.println("debounce");
           delay(150);  //debouce delay to wait for transents to die out.
           if (lastState == S_Activity || lastState == S_Paused){ //stop the activity
             state = S_Wait;
             stateReport = "stop";  //tells the server that the activity is new
+
+
+
+            if (locationTracker.gpsFix()) {  //if there is curently a fix, report the location from the queue
+              locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(),locationTracker.readLonDeg(), locationTracker.readLatDeg(),
+                                locationTracker.getSpeed(), uvValue, stateReport);
+            }
+            else {                     //if we dont curently have a fix return a BS locatoin
+              locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(), -110.948676, 32.232609,
+                                5, uvValue, stateReport);
+              // locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(), 999.9999, 333.3333,
+              //                                     -1, uvValue, stateReport);
+            }
+
+            //write the new locData to the locationsQueue
+            locationsQueue.push(locData);
+
+
             waitLedTick = 0;
           }
           else{                         //else start the activity
@@ -206,10 +268,21 @@ void loop() {
 
 
       case S_Activity:
-          Serial.println("activity");
+          //Serial.println("activity");
+
+          //check the uv warning light
+          if(uvValue>uvThreshold){
+            digitalWrite(uvLED, HIGH);
+          }
+          else{
+            digitalWrite(uvLED, LOW);
+          }
+
+
           if (executeStateMachines) {   //when the intrupt changes this flag to true
               digitalWrite(statusLED, LOW); //turn on the status lgiht to show we are in the activity
 
+              // if(locationTracker.gpsFix() && locationTracker.getSpeed() < 3){
               if(locationTracker.getSpeed() < 3){
                 pauseCount ++;
               }
@@ -220,7 +293,7 @@ void loop() {
               //after 30 seconds without movement go to the poused state
               if(pauseCount > (30*1000/delayTime)){
                 state = S_Paused;
-                stateReport = "paused";
+                stateReport = "paused";  //##################################################################################
                 waitLedTick = 0;
               }
 
@@ -232,25 +305,14 @@ void loop() {
                                   locationTracker.getSpeed(), uvValue, stateReport);
               }
               else {                     //if we dont curently have a fix return a BS locatoin
-                // locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(), -110.948676, 32.232609,
-                //                   1, uvValue);
-                locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(), 999.9999, 333.3333,
-                                                    -1, uvValue, stateReport);
+                locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(), -110.948676, 32.232609,
+                                  5, uvValue, stateReport);
+                // locData = UVLocation(millis(), Time.hour(), Time.minute(), Time.second(), 999.9999, 333.3333,
+                //                                     -1, uvValue, stateReport);
               }
 
               //write the new locData to the locationsQueue
               locationsQueue.push(locData);
-
-
-              //check the uv warning light
-              if(uvValue>uvThreshold){
-                digitalWrite(uvLED, HIGH);
-              }
-              else{
-                digitalWrite(uvLED, LOW);
-              }
-
-
               //now that we pusheed the the data to the queue lets change the state. as long as it is not going to be paused next
               stateReport = "activity";
 

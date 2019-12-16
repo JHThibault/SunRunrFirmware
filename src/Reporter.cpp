@@ -21,6 +21,7 @@ void Reporter::execute() {
     UVLocation nextLocation;
     String postData;
 
+
     switch (state) {
         case Reporter::S_Wait:
             tick = 0;

@@ -13,13 +13,15 @@
 #define uvLED D6
 #define ONE_DAY_MILLIS 24 * 60 * 60 * 1000
 #define button  D5
+//
+
 
 //-------------------------------------------------------------------
 
 using namespace std;
 
 
-
+#define APIKEY  "bzoxfNFoIss1rWDmHGHNNdQUfd5uqRSM"
 //-------------------------------------------------------------------
 
 class Reporter {
@@ -37,6 +39,7 @@ private:
 public:
     Reporter(AssetTracker &theTracker, queue<UVLocation>& theLocations);
     void execute();
+
 };
 
 //-------------------------------------------------------------------

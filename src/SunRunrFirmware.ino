@@ -58,7 +58,7 @@ void responseHandler(const char *event, const char *data) {     // prints the da
     // Formatting output
     String output = String::format("POST Response:\n  %s\n  %s\n", event, data);
     // Log to Serial console
-    Serial.println(output);
+    Serial.print(output);
     //PARSE Out the UV
     uvThreshold = 5000; /////// Fix me with the server feedback
 
@@ -67,28 +67,29 @@ void responseHandler(const char *event, const char *data) {     // prints the da
 
     char c;
     String buffer;
-    int colanCount = 0;
-    int dataLen = sizeof(data) / sizeof(data[0]);
+    int colonCount = 0;
+    // int dataLen = sizeof(data) / sizeof(char);
+    int dataLen = (unsigned)strlen(data);
     //while (c != '}')
+
 
     for (int i =0; i < dataLen; i++){
 
       c = data[i];
 
+
       if (c == ':'){
-        colanCount++;
+        colonCount++;
       }
 
-      if (colanCount >  3 && c >= '0' && c <= '9'){
+      if (colonCount >=  3 && c >= '0' && c <= '9'){
         buffer += c;
       }
-
-      i++;
     }
 
     uvThreshold = atoi(buffer);
 
-    Serial.print("uvThreshold: ");
+    Serial.print("User UV Threshold: ");
     Serial.println(uvThreshold);
 
     // POST Response:
@@ -100,6 +101,7 @@ void responseHandler(const char *event, const char *data) {     // prints the da
 //when the button is pressed record the curent state then go to the db
 void buttonHandler(){
     lastState = state;
+
     state = S_deBounce;
 }
 
@@ -142,6 +144,7 @@ void setup() {
     attachInterrupt(button, buttonHandler, FALLING); //atatch the intrupt
 
     state = S_Wait;  //first go to the wait state fitst
+    lastState=S_Wait;
     waitLedTick = 0; //reset the counter for whe wait led timing.
 
 
@@ -235,7 +238,7 @@ void loop() {
       //handles what happens when the button has been presseed
       case S_deBounce:
           //Serial.println("debounce");
-          delay(150);  //debouce delay to wait for transents to die out.
+          delay(250);  //debouce delay to wait for transents to die out.
           if (lastState == S_Activity || lastState == S_Paused){ //stop the activity
             state = S_Wait;
             stateReport = "stop";  //tells the server that the activity is new
@@ -259,7 +262,7 @@ void loop() {
 
             waitLedTick = 0;
           }
-          else{                         //else start the activity
+          else {                         //else start the activity
             state = S_Activity;
             stateReport = "start";  //tells the server that the activity is old
             pauseCount = 0;
